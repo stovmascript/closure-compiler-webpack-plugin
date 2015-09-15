@@ -1,0 +1,43 @@
+html,
+body {
+	height: 100%;
+}
+
+body {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	margin: 0;
+	font-family: sans-serif;
+	font-size: 14px;
+}
+
+#notes {
+	margin-top: -2em;
+	border-radius: 1em;
+	text-align: center;
+	overflow: hidden;
+	box-shadow: 0 1em 5em fade(black, 11%);
+
+	> div {
+		padding: 2em;
+
+		&:hover,
+		&:focus {
+			background: fade(black, 11%);
+			cursor: pointer;
+		}
+
+		div {
+			font-size: 3em;
+
+			+ div {
+				font-size: 2em;
+			}
+		}
+
+		+ div {
+			border-top: 1px solid fade(black, 11%);
+		}
+	}
+}

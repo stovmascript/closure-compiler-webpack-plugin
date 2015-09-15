@@ -1,5 +1,6 @@
 var webpack 				= require('webpack');
-var ClosureCompilerPlugin 	= require('../index');
+var ClosureCompilerPlugin 	= require('../');
+var ExtractTextPlugin 		= require('extract-text-webpack-plugin');
 
 module.exports = {
 	entry: {
@@ -9,10 +10,20 @@ module.exports = {
 		script4: './script4'
 	},
 	output: {
-		filename: '[name].min.js'
+		filename: '[name].min.js',
+		path: __dirname + '/assets'
+	},
+	module: {
+		loaders: [
+			{
+				test: /\.less$/,
+				loader: ExtractTextPlugin.extract('style', 'css?minimize&sourceMap!autoprefixer!less?sourceMap')
+			}
+		]
 	},
 	devtool: 'source-map',
 	plugins: [
+		new ExtractTextPlugin('style.min.css'),
 		new ClosureCompilerPlugin({
 			// compilation_level: 'ADVANCED_OPTIMIZATIONS',
 			// create_source_map: false

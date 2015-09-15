@@ -23,6 +23,14 @@
   "optionalDependencies": {
     "mkfifo": "^0.1.3"
   },
+  "devDependencies": {
+    "autoprefixer-loader": "*",
+    "css-loader": "*",
+    "extract-text-webpack-plugin": "*",
+    "less": "*",
+    "less-loader": "*",
+    "style-loader": "*"
+  },
   "homepage": "https://github.com/stovmascript/closure-compiler-webpack-plugin",
   "repository": {
     "type": "git",

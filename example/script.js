@@ -1,3 +1,5 @@
+require('./style.less');
+
 var moduleA = require('./module-a');
 var moduleB = require('./module-b');
 
