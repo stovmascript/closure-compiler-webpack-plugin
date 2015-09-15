@@ -19,7 +19,7 @@ npm install closure-compiler-webpack-plugin
 
 ## Example
 
-```
+```javascript
 // webpack.config.js
 var ClosureCompilerPlugin = require('closure-compiler-webpack-plugin');
 
@@ -42,7 +42,7 @@ module.exports = {
 
 Use Closure Compiler's flags.
 
-```
+```javascript
 // webpack.config.js
 ...
 
