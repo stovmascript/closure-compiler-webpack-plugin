@@ -1,5 +1,3 @@
-Google Closure Compiler plugin for webpack built on the [Nailgun](http://martiansoftware.com/nailgun/) JVM.
-
 # Closure Compiler plugin for webpack
 
 ## Prerequisites
