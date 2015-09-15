@@ -1,0 +1,34 @@
+{
+  "name": "closure-compiler-webpack-plugin",
+  "version": "0.1.0",
+  "description": "Google Closure Compiler plugin for webpack built on the Nailgun JVM.",
+  "author": "Martin Stovicek",
+  "license": "MIT",
+  "keywords": [
+    "closure compiler",
+    "webpack",
+    "plugin",
+    "nailgun"
+  ],
+  "main": "index.js",
+  "dependencies": {
+    "event-stream": "^3.3.1",
+    "google-closure-compiler": "^20150901.0.0",
+    "node-nailgun": "^1.0.2",
+    "rsvp": "^3.1.0",
+    "temp": "^0.8.3",
+    "webpack": "^1.12.1",
+    "webpack-core": "^0.6.6"
+  },
+  "optionalDependencies": {
+    "mkfifo": "^0.1.3"
+  },
+  "homepage": "https://github.com/stovmascript/closure-compiler-webpack-plugin",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/stovmascript/closure-compiler-webpack-plugin.git"
+  },
+  "bugs": {
+    "url": "https://github.com/stovmascript/closure-compiler-webpack-plugin/issues"
+  }
+}
