@@ -1,23 +1,23 @@
-var net 					= require('net');
-var path 					= require('path');
-var os 						= require('os');
-var fs 						= require('fs');
+var net = require('net');
+var path = require('path');
+var os = require('os');
+var fs = require('fs');
 
-var nailgun 				= require('node-nailgun');
-var RSVP 					= require('rsvp');
-var temp 					= require('temp').track();
-var gcc 					= require.resolve('google-closure-compiler/compiler.jar');
-var es 						= require('event-stream');
+var nailgun = require('node-nailgun');
+var RSVP = require('rsvp');
+var temp = require('temp').track();
+var gcc = require.resolve('google-closure-compiler/compiler.jar');
+var es = require('event-stream');
 
 if (process.platform != 'win32') {
-	var mkfifoSync 			= require('mkfifo').mkfifoSync;
+	var mkfifoSync = require('mkfifo').mkfifoSync;
 }
 
-var ModuleFilenameHelpers 	= require('webpack/lib/ModuleFilenameHelpers');
-var SourceMapConsumer 		= require('webpack-core/lib/source-map').SourceMapConsumer;
-var SourceMapSource 		= require('webpack-core/lib/SourceMapSource');
-var RawSource 				= require('webpack-core/lib/RawSource');
-var RequestShortener 		= require('webpack/lib/RequestShortener');
+var ModuleFilenameHelpers = require('webpack/lib/ModuleFilenameHelpers');
+var SourceMapConsumer = require('webpack-core/lib/source-map').SourceMapConsumer;
+var SourceMapSource = require('webpack-core/lib/SourceMapSource');
+var RawSource = require('webpack-core/lib/RawSource');
+var RequestShortener = require('webpack/lib/RequestShortener');
 
 function ClosureCompilerPlugin(options) {
 	if (typeof options !== 'object') {
@@ -46,8 +46,8 @@ ClosureCompilerPlugin.prototype.apply = function(compiler) {
 
 		compilation.plugin('optimize-chunk-assets', function(chunks, callback) {
 			var compilationPromise = new RSVP.Promise(function(resolve, reject) {
-				var files 			= [];
-				var processedFiles 	= [];
+				var files = [];
+				var processedFiles = [];
 
 				chunks.forEach(function(chunk) {
 					chunk.files.forEach(function(file) {
