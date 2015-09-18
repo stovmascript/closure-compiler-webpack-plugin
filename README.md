@@ -57,7 +57,7 @@ Use Closure Compiler's flags.
 For a list of available options:
 
 ```
-java -jar node_modules/google-closure-compiler/compiler.jar --help
+java -jar node_modules/closure-compiler-webpack-plugin/node_modules/google-closure-compiler/compiler.jar --help
 ```
 
 ## Shortcomings
