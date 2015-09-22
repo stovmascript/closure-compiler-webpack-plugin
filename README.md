@@ -5,9 +5,11 @@
 - Java 7 or higher
 - Build tools required by node-gyp for [your platform](https://github.com/nodejs/node-gyp#installation)
 	- Hopefully with Node v4, this will soon not be needed
-	- **Windows 10 the Terrible** :speak_no_evil:
-		- I still haven't figured out the right combination of Visual Studio or Windows SDK to properly compile all deps on Windows 10.
-		- **Fortunately, everything should still work.** You may see some installation errors during ```npm install``` and you may suffer a small performance hit - a slower fallback method is used, instead of the compiled buffertools.
+	- **Windows 10**
+		- [Python 2.7.x](https://www.python.org/downloads/windows/)
+			- In the installer, make sure to select the option to add to path
+		- [Visual Studio Express 2015 for Windows Desktop](https://go.microsoft.com/fwlink/?LinkId=615464&clcid=0x409)
+		- In **System &raquo; Advanced System Settings &raquo; Environment Variables** add a system variable named ```GYP_MSVS_VERSION``` with the value of ```2015```
 
 ## Installation
 
