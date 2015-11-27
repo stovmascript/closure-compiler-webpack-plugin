@@ -53,7 +53,7 @@ Use Closure Compiler's flags.
 			create_source_map: false
 			// Use 'create_source_map: false' to override your webpack 
 			// config. Otherwise, anything you set for this option will be 
-			// ignored in favour of your 'devtool' and  filename settings.
+			// ignored in favour of your 'devtool' and filename configuration.
 		})
 	]
 
