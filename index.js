@@ -3,15 +3,15 @@ var path = require('path');
 var os = require('os');
 var fs = require('fs');
 
+if (process.platform != 'win32') {
+	var child = require('child_process');
+}
+
 var nailgun = require('node-nailgun');
 var RSVP = require('rsvp');
 var temp = require('temp').track();
 var gcc = require.resolve('google-closure-compiler/compiler.jar');
 var es = require('event-stream');
-
-if (process.platform != 'win32') {
-	var mkfifoSync = require('mkfifo').mkfifoSync;
-}
 
 var ModuleFilenameHelpers = require('webpack/lib/ModuleFilenameHelpers');
 var SourceMapConsumer = require('webpack-core/lib/source-map').SourceMapConsumer;
@@ -96,8 +96,19 @@ ClosureCompilerPlugin.prototype.apply = function(compiler) {
 									var sourceMapOutputDump = temp.openSync('ccwp-dump-', 'w+').path;
 								} else {
 									var sourceMapOutputDump = temp.path({prefix: 'ccwp-dump-'});
+									var namedPipe = child.spawnSync('mkfifo', [sourceMapOutputDump]);
 
-									mkfifoSync(sourceMapOutputDump, 0600);
+									if (namedPipe.error) {
+										compilation.errors.push(new Error(
+											file +
+											' from child_process.spawnSync\n' +
+											'Looks like mkfifo might not be installed, weird...\n' +
+											'If that\'s the case, make sure to install it, ' +
+											'usually as part of coreutils.'
+										));
+
+										resolve();
+									}
 								}
 
 								gccArgs.create_source_map = sourceMapOutputDump;
