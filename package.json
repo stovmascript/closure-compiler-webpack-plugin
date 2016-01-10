@@ -13,7 +13,7 @@
   "main": "index.js",
   "dependencies": {
     "event-stream": "^3.3.1",
-    "google-closure-compiler": "^20151015.0.0",
+    "google-closure-compiler": "^20151216.1.0",
     "node-nailgun": "^1.0.2",
     "rsvp": "^3.1.0",
     "temp": "^0.8.3",

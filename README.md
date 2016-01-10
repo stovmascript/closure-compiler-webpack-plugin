@@ -4,16 +4,10 @@
 
 - Java 7 or higher
 - Build tools required by node-gyp for [your platform](https://github.com/nodejs/node-gyp#installation)
-	- Hopefully with Node v4, this will soon not be needed
-	- **Windows 10**
-		- [Python 2.7.x](https://www.python.org/downloads/windows/)
-			- In the installer, make sure to select the option to add to path
-		- [Visual Studio Express 2015 for Windows Desktop](https://go.microsoft.com/fwlink/?LinkId=615464&clcid=0x409)
-		- In **System &raquo; Advanced System Settings &raquo; Environment Variables** add a system variable named ```GYP_MSVS_VERSION``` with the value of ```2015```
 
 ## Installation
 
-```
+```shell
 npm install closure-compiler-webpack-plugin
 ```
 
@@ -62,7 +56,7 @@ Use Closure Compiler's flags.
 
 For a list of available options:
 
-```
+```shell
 java -jar node_modules/closure-compiler-webpack-plugin/node_modules/google-closure-compiler/compiler.jar --help
 ```
 
