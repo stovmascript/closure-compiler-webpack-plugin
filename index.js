@@ -1,6 +1,4 @@
 var net = require('net');
-var path = require('path');
-var os = require('os');
 var fs = require('fs');
 
 if (process.platform != 'win32') {
@@ -100,11 +98,11 @@ ClosureCompilerPlugin.prototype.apply = function(compiler) {
 
 									if (namedPipe.error) {
 										compilation.errors.push(new Error(
-											file +
-											' from child_process.spawnSync\n' +
-											'Looks like mkfifo might not be installed, weird...\n' +
-											'If that\'s the case, make sure to install it, ' +
-											'usually as part of coreutils.'
+											file
+											+ ' from child_process.spawnSync\n'
+											+ 'Looks like mkfifo might not be installed, weird...\n'
+											+ 'If that\'s the case, make sure to install it, '
+											+ 'usually as part of coreutils.'
 										));
 
 										resolve();
@@ -242,8 +240,8 @@ ClosureCompilerPlugin.prototype.apply = function(compiler) {
 											asset.__ClosureCompilerPlugin = compilation.assets[file] = new RawSource(output);
 										}
 
-										if (processedFiles.length == (numberOfFilesToProcess - 1) ||
-											numberOfFilesToProcess == 0) {
+										if (processedFiles.length == (numberOfFilesToProcess - 1)
+											|| numberOfFilesToProcess == 0) {
 											resolve();
 										} else {
 											processedFiles.push(1);
@@ -281,29 +279,29 @@ ClosureCompilerPlugin.prototype.apply = function(compiler) {
 
 								if (original && original.source) {
 									compilation.errors.push(new Error(
-										file +
-										' from Closure Compiler\n' +
-										err.message +
-										' [' +
-										new RequestShortener(compiler.context).shorten(original.source) +
-										':' +
-										original.line +
-										',' +
-										original.column +
-										']'
+										file
+										+ ' from Closure Compiler\n'
+										+ err.message
+										+ ' ['
+										+ new RequestShortener(compiler.context).shorten(original.source)
+										+ ':'
+										+ original.line
+										+ ','
+										+ original.column
+										+ ']'
 									));
 								} else {
 									compilation.errors.push(new Error(
-										file +
-										' from Closure Compiler\n' +
-										err.message +
-										' [' +
-										file +
-										':' +
-										err.line +
-										',' +
-										err.col +
-										']'
+										file
+										+ ' from Closure Compiler\n'
+										+ err.message
+										+ ' ['
+										+ file
+										+ ':'
+										+ err.line
+										+ ','
+										+ err.col
+										+ ']'
 									));
 								}
 							} else if (err.msg) {

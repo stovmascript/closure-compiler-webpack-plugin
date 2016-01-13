@@ -1,3 +1,3 @@
 module.exports = function() {
-	console.log('Module B')
+	console.log('Module B');
 };

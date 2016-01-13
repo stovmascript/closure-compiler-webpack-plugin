@@ -1,6 +1,19 @@
-var webpack 				= require('webpack');
-var ClosureCompilerPlugin 	= require('../');
-var ExtractTextPlugin 		= require('extract-text-webpack-plugin');
+var webpack = require('webpack');
+var ClosureCompilerPlugin = require('../');
+var ExtractTextPlugin = require('extract-text-webpack-plugin');
+
+var optimizerPlugin = new webpack.optimize.UglifyJsPlugin({
+	compress: {
+		warnings: false
+	}
+});
+
+if (process.env.CCWP_ENV === 'cc') {
+	optimizerPlugin = new ClosureCompilerPlugin({
+		// compilation_level: 'ADVANCED_OPTIMIZATIONS',
+		// create_source_map: false
+	});
+}
 
 module.exports = {
 	entry: {
@@ -24,14 +37,6 @@ module.exports = {
 	devtool: 'source-map',
 	plugins: [
 		new ExtractTextPlugin('style.min.css'),
-		new ClosureCompilerPlugin({
-			// compilation_level: 'ADVANCED_OPTIMIZATIONS',
-			// create_source_map: false
-		}),
-		// new webpack.optimize.UglifyJsPlugin({
-		// 	compress: {
-		// 		warnings: false
-		// 	}
-		// })
+		optimizerPlugin
 	]
 };
