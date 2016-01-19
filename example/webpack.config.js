@@ -20,7 +20,8 @@ module.exports = {
 		script: './script',
 		script2: './script2',
 		script3: './script3',
-		script4: './script4'
+		script4: './script4',
+		script5: './script5'
 	},
 	output: {
 		filename: '[name].min.js',
