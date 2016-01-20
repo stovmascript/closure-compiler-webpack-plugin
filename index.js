@@ -55,7 +55,7 @@ ClosureCompilerPlugin.prototype.apply = function(compiler) {
 		}
 
 		compilation.plugin('optimize-chunk-assets', function(chunks, callback) {
-			var compilationPromise = new RSVP.Promise(function(resolve, reject) {
+			var compilationPromise = new RSVP.Promise(function(resolve) {
 				var files = [];
 				var processedFiles = [];
 
@@ -173,7 +173,7 @@ ClosureCompilerPlugin.prototype.apply = function(compiler) {
 													var ender;
 													var enderTick = false;
 
-													fs.watchFile(sourceMapOutputDump, {interval: 100}, function(curr, prev) {
+													fs.watchFile(sourceMapOutputDump, {interval: 100}, function() {
 														enderTick = false;
 
 														if (!ender) {
@@ -337,7 +337,7 @@ ClosureCompilerPlugin.prototype.apply = function(compiler) {
 				}
 			});
 
-			compilationPromise.then(function(result) {
+			compilationPromise.then(function() {
 				temp.cleanupSync();
 				callback();
 			});
