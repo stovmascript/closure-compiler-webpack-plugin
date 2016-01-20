@@ -1,6 +1,5 @@
 var net = require('net');
-var path = require('path');
-var os = require('os');
+var EventEmitter = require('events').EventEmitter;
 var fs = require('fs');
 
 if (process.platform != 'win32') {
@@ -27,15 +26,26 @@ function ClosureCompilerPlugin(options) {
 	this.options = options;
 }
 
+var JVM_STARTED_EVENT = 'jvm-started';
+
 ClosureCompilerPlugin.prototype.apply = function(compiler) {
 	var options = this.options;
 	var jvm = nailgun.createServer();
+	var jvmStarted = false;
+	var jvmEmitter = new EventEmitter;
 
 	if (options.create_source_map !== false) {
 		var sourceMapOutputServer = net.createServer();
 	}
 
 	options.test = options.test || /\.js($|\?)/i;
+
+	jvm.spawnJar(gcc, ['--help'], function(err) {
+		if (!err) {
+			jvmStarted = true;
+			jvmEmitter.emit(JVM_STARTED_EVENT);
+		}
+	});
 
 	compiler.plugin('compilation', function(compilation) {
 		if (options.sourceMap !== false) {
@@ -45,7 +55,7 @@ ClosureCompilerPlugin.prototype.apply = function(compiler) {
 		}
 
 		compilation.plugin('optimize-chunk-assets', function(chunks, callback) {
-			var compilationPromise = new RSVP.Promise(function(resolve, reject) {
+			var compilationPromise = new RSVP.Promise(function(resolve) {
 				var files = [];
 				var processedFiles = [];
 
@@ -100,11 +110,11 @@ ClosureCompilerPlugin.prototype.apply = function(compiler) {
 
 									if (namedPipe.error) {
 										compilation.errors.push(new Error(
-											file +
-											' from child_process.spawnSync\n' +
-											'Looks like mkfifo might not be installed, weird...\n' +
-											'If that\'s the case, make sure to install it, ' +
-											'usually as part of coreutils.'
+											file
+											+ ' from child_process.spawnSync\n'
+											+ 'Looks like mkfifo might not be installed, weird...\n'
+											+ 'If that\'s the case, make sure to install it, '
+											+ 'usually as part of coreutils.'
 										));
 
 										resolve();
@@ -125,151 +135,158 @@ ClosureCompilerPlugin.prototype.apply = function(compiler) {
 								gccProcessArgs.push(gccArgs[key]);
 							}
 
-							jvm.spawnJar(gcc, gccProcessArgs, function(err, proc) {
-								if (err) {
-									compilation.errors.push(new Error(file + ' from Nailgun JVM\n' + err));
-									resolve();
-								} else {
-									var closureCompilerProcess = proc;
-									var jsOutputStream = es.through();
-									var finalStream = es.through();
-									var ender;
-									var enderTick = false;
-									var outputChunks = '';
+							jvmEmitter.once(JVM_STARTED_EVENT, function() {
+								jvm.spawnJar(gcc, gccProcessArgs, function(err, closureCompilerProcess) {
+									if (err) {
+										compilation.errors.push(new Error(file + ' from Nailgun JVM\n' + err));
+										resolve();
+									} else {
+										var jsOutputStream = es.through();
+										var finalStream = es.through();
+										var ender;
+										var enderTick = false;
+										var outputChunks = '';
 
-									closureCompilerProcess.stdout.on('data', function(data) {
-										outputChunks += data;
-										enderTick = false;
+										closureCompilerProcess.stdout.on('data', function(data) {
+											outputChunks += data;
+											enderTick = false;
 
-										if (!ender) {
-											ender = setInterval(function() {
-												if (enderTick) {
-													clearInterval(ender);
-													jsOutputStream.write(outputChunks);
-													jsOutputStream.end();
-												}
-
-												enderTick = true;
-											});
-										}
-									});
-
-									if (options.create_source_map !== false) {
-										var sourceMapOutputStream = es.through();
-										var sourceMapChunks = '';
-
-										sourceMapOutputServer.listen(function() {
-											if (process.platform == 'win32') {
-												var ender;
-												var enderTick = false;
-
-												fs.watchFile(sourceMapOutputDump, {interval: 100}, function(curr, prev) {
-													enderTick = false;
-
-													if (!ender) {
-														ender = setInterval(function() {
-															if (enderTick) {
-																clearInterval(ender);
-
-																var dumpStream = fs.createReadStream(sourceMapOutputDump);
-
-																dumpStream
-																.on('data', function(data) {
-																	sourceMapChunks += data;
-																})
-																.on('end', function() {
-																	fs.unwatchFile(sourceMapOutputDump);
-																	sourceMapOutputServer.close();
-																	sourceMapOutputStream.write(sourceMapChunks);
-																	sourceMapOutputStream.end();
-																});
-															}
-
-															enderTick = true;
-														}, 100);
+											if (!ender) {
+												ender = setInterval(function() {
+													if (enderTick) {
+														clearInterval(ender);
+														jsOutputStream.write(outputChunks);
+														jsOutputStream.end();
 													}
-												});
-											} else {
-												var dumpStream = fs.createReadStream(sourceMapOutputDump);
 
-												dumpStream
-												.on('data', function(data) {
-													sourceMapChunks += data;
-												})
-												.on('end', function() {
-													fs.unlink(sourceMapOutputDump, function() {
-														sourceMapOutputServer.close();
-														sourceMapOutputStream.write(sourceMapChunks);
-														sourceMapOutputStream.end();
-													});
+													enderTick = true;
 												});
 											}
 										});
 
-										es
-										.merge(jsOutputStream, sourceMapOutputStream)
-										.pipe(finalStream);
-									} else {
-										jsOutputStream.pipe(finalStream);
+										if (options.create_source_map !== false) {
+											var sourceMapOutputStream = es.through();
+											var sourceMapChunks = '';
+
+											sourceMapOutputServer.listen(function() {
+												if (process.platform == 'win32') {
+													var ender;
+													var enderTick = false;
+
+													fs.watchFile(sourceMapOutputDump, {interval: 100}, function() {
+														enderTick = false;
+
+														if (!ender) {
+															ender = setInterval(function() {
+																if (enderTick) {
+																	clearInterval(ender);
+
+																	var dumpStream = fs.createReadStream(sourceMapOutputDump);
+
+																	dumpStream
+																	.on('data', function(data) {
+																		sourceMapChunks += data;
+																	})
+																	.on('end', function() {
+																		fs.unwatchFile(sourceMapOutputDump);
+																		sourceMapOutputServer.close();
+																		sourceMapOutputStream.write(sourceMapChunks);
+																		sourceMapOutputStream.end();
+																	});
+																}
+
+																enderTick = true;
+															}, 100);
+														}
+													});
+												} else {
+													var dumpStream = fs.createReadStream(sourceMapOutputDump);
+
+													dumpStream
+													.on('data', function(data) {
+														sourceMapChunks += data;
+													})
+													.on('end', function() {
+														fs.unlink(sourceMapOutputDump, function() {
+															sourceMapOutputServer.close();
+															sourceMapOutputStream.write(sourceMapChunks);
+															sourceMapOutputStream.end();
+														});
+													});
+												}
+											});
+
+											es
+											.merge(jsOutputStream, sourceMapOutputStream)
+											.pipe(finalStream);
+										} else {
+											jsOutputStream.pipe(finalStream);
+										}
+
+										var output;
+										var map;
+
+										finalStream
+										.on('data', function(data) {
+											data = data.toString();
+
+											try {
+												var parsedJSON = JSON.parse(data);
+											} catch(err) {}
+
+											if (parsedJSON) {
+												map = parsedJSON;
+											} else {
+												output = data;
+											}
+										})
+										.on('end', function() {
+											if (map) {
+												map.sources = [];
+												map.sources.push(file);
+
+												asset.__ClosureCompilerPlugin
+												= compilation.assets[file]
+												= new SourceMapSource(output, file, map, input, inputSourceMap);
+											} else {
+												asset.__ClosureCompilerPlugin
+												= compilation.assets[file]
+												= new RawSource(output);
+											}
+
+											if (processedFiles.length == (numberOfFilesToProcess - 1)
+												|| numberOfFilesToProcess == 0) {
+												resolve();
+											} else {
+												processedFiles.push(1);
+											}
+										});
+
+										var warnings;
+
+										closureCompilerProcess.stderr
+										.on('data', function(data) {
+											warnings += data.toString();
+										})
+										.on('end', function() {
+											if (warnings) {
+												compilation.warnings.push(new Error(
+													file + ' from Closure Compiler\n' + warnings
+												));
+
+												resolve();
+											}
+										});
+
+										closureCompilerProcess.stdin.write(input);
+										closureCompilerProcess.stdin.end();
 									}
-
-									var output;
-									var map;
-
-									finalStream
-									.on('data', function(data) {
-										data = data.toString();
-
-										try {
-											var parsedJSON = JSON.parse(data);
-										} catch(err) {}
-
-										if (parsedJSON) {
-											map = parsedJSON;
-										} else {
-											output = data;
-										}
-									})
-									.on('end', function() {
-										if (map) {
-											map.sources = [];
-											map.sources.push(file);
-
-											asset.__ClosureCompilerPlugin = compilation.assets[file] = new SourceMapSource(
-												output, file, map, input, inputSourceMap
-											);
-										} else {
-											asset.__ClosureCompilerPlugin = compilation.assets[file] = new RawSource(output);
-										}
-
-										if (processedFiles.length == (numberOfFilesToProcess - 1) ||
-											numberOfFilesToProcess == 0) {
-											resolve();
-										} else {
-											processedFiles.push(1);
-										}
-									});
-
-									var warnings;
-
-									closureCompilerProcess.stderr
-									.on('data', function(data) {
-										warnings += data.toString();
-									})
-									.on('end', function() {
-										if (warnings) {
-											compilation.warnings.push(new Error(
-												file + ' from Closure Compiler\n' + warnings
-											));
-
-											resolve();
-										}
-									});
-
-									closureCompilerProcess.stdin.write(input);
-									closureCompilerProcess.stdin.end();
-								}
+								});
 							});
+
+							if (jvmStarted) {
+								jvmEmitter.emit(JVM_STARTED_EVENT);
+							}
 						} catch(err) {
 							if (err.line) {
 								if (sourceMap) {
@@ -281,29 +298,29 @@ ClosureCompilerPlugin.prototype.apply = function(compiler) {
 
 								if (original && original.source) {
 									compilation.errors.push(new Error(
-										file +
-										' from Closure Compiler\n' +
-										err.message +
-										' [' +
-										new RequestShortener(compiler.context).shorten(original.source) +
-										':' +
-										original.line +
-										',' +
-										original.column +
-										']'
+										file
+										+ ' from Closure Compiler\n'
+										+ err.message
+										+ ' ['
+										+ new RequestShortener(compiler.context).shorten(original.source)
+										+ ':'
+										+ original.line
+										+ ','
+										+ original.column
+										+ ']'
 									));
 								} else {
 									compilation.errors.push(new Error(
-										file +
-										' from Closure Compiler\n' +
-										err.message +
-										' [' +
-										file +
-										':' +
-										err.line +
-										',' +
-										err.col +
-										']'
+										file
+										+ ' from Closure Compiler\n'
+										+ err.message
+										+ ' ['
+										+ file
+										+ ':'
+										+ err.line
+										+ ','
+										+ err.col
+										+ ']'
 									));
 								}
 							} else if (err.msg) {
@@ -320,7 +337,7 @@ ClosureCompilerPlugin.prototype.apply = function(compiler) {
 				}
 			});
 
-			compilationPromise.then(function(result) {
+			compilationPromise.then(function() {
 				temp.cleanupSync();
 				callback();
 			});

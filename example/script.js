@@ -40,7 +40,7 @@ function makeNotes(data, noteContainer) {
   }
 }
 
-console.log(1)
+console.log(1);
 
 function main() {
   var noteData = [
