@@ -5,18 +5,21 @@
   "author": "Martin Stovicek",
   "license": "MIT",
   "keywords": [
-    "closure compiler",
+    "google",
+    "closure",
+    "compiler",
     "webpack",
     "plugin",
-    "nailgun"
+    "optimizer",
+    "nailgun",
+    "fast",
+    "java"
   ],
   "main": "index.js",
   "dependencies": {
-    "event-stream": "^3.3.1",
-    "google-closure-compiler": "^20151216.1.0",
+    "google-closure-compiler": "^20160125.0.0",
     "node-nailgun": "^1.0.2",
     "rsvp": "^3.1.0",
-    "temp": "^0.8.3",
     "webpack": "^1.12.1",
     "webpack-core": "^0.6.6"
   },

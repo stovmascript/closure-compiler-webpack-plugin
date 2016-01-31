@@ -10,8 +10,9 @@ var optimizerPlugin = new webpack.optimize.UglifyJsPlugin({
 
 if (process.env.CCWP_ENV === 'cc') {
 	optimizerPlugin = new ClosureCompilerPlugin({
-		// compilation_level: 'ADVANCED_OPTIMIZATIONS',
-		// create_source_map: false
+		// compilation_level: 'WHITESPACE_ONLY',
+		// create_source_map: false,
+		// json_streams: 'BOTH'
 	});
 }
 
