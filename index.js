@@ -1,16 +1,8 @@
-var net = require('net');
 var EventEmitter = require('events').EventEmitter;
-var fs = require('fs');
-
-if (process.platform != 'win32') {
-	var child = require('child_process');
-}
 
 var nailgun = require('node-nailgun');
 var RSVP = require('rsvp');
-var temp = require('temp').track();
-var gcc = require.resolve('google-closure-compiler/compiler.jar');
-var es = require('event-stream');
+var gcc = require('google-closure-compiler').compiler.COMPILER_PATH;
 
 var ModuleFilenameHelpers = require('webpack/lib/ModuleFilenameHelpers');
 var SourceMapConsumer = require('webpack-core/lib/source-map').SourceMapConsumer;
@@ -21,6 +13,10 @@ var RequestShortener = require('webpack/lib/RequestShortener');
 function ClosureCompilerPlugin(options) {
 	if (typeof options !== 'object') {
 		options = {};
+	} else if (options.create_source_map !== false) {
+		options['json_streams'] = 'OUT';
+	} else {
+		delete options.json_streams;
 	}
 
 	this.options = options;
@@ -34,18 +30,7 @@ ClosureCompilerPlugin.prototype.apply = function(compiler) {
 	var jvmStarted = false;
 	var jvmEmitter = new EventEmitter;
 
-	if (options.create_source_map !== false) {
-		var sourceMapOutputServer = net.createServer();
-	}
-
 	options.test = options.test || /\.js($|\?)/i;
-
-	jvm.spawnJar(gcc, ['--help'], function(err) {
-		if (!err) {
-			jvmStarted = true;
-			jvmEmitter.emit(JVM_STARTED_EVENT);
-		}
-	});
 
 	compiler.plugin('compilation', function(compilation) {
 		if (options.sourceMap !== false) {
@@ -101,27 +86,6 @@ ClosureCompilerPlugin.prototype.apply = function(compiler) {
 								}
 
 								var sourceMap = new SourceMapConsumer(inputSourceMap);
-
-								if (process.platform == 'win32') {
-									var sourceMapOutputDump = temp.openSync('ccwp-dump-', 'w+').path;
-								} else {
-									var sourceMapOutputDump = temp.path({prefix: 'ccwp-dump-'});
-									var namedPipe = child.spawnSync('mkfifo', [sourceMapOutputDump]);
-
-									if (namedPipe.error) {
-										compilation.errors.push(new Error(
-											file
-											+ ' from child_process.spawnSync\n'
-											+ 'Looks like mkfifo might not be installed, weird...\n'
-											+ 'If that\'s the case, make sure to install it, '
-											+ 'usually as part of coreutils.'
-										));
-
-										resolve();
-									}
-								}
-
-								gccArgs.create_source_map = sourceMapOutputDump;
 							} else {
 								var input = asset.source();
 
@@ -141,11 +105,11 @@ ClosureCompilerPlugin.prototype.apply = function(compiler) {
 										compilation.errors.push(new Error(file + ' from Nailgun JVM\n' + err));
 										resolve();
 									} else {
-										var jsOutputStream = es.through();
-										var finalStream = es.through();
 										var ender;
 										var enderTick = false;
 										var outputChunks = '';
+										var output;
+										var map;
 
 										closureCompilerProcess.stdout.on('data', function(data) {
 											outputChunks += data;
@@ -155,110 +119,41 @@ ClosureCompilerPlugin.prototype.apply = function(compiler) {
 												ender = setInterval(function() {
 													if (enderTick) {
 														clearInterval(ender);
-														jsOutputStream.write(outputChunks);
-														jsOutputStream.end();
+
+														try {
+															var parsedJSON = JSON.parse(outputChunks);
+														} catch(err) {}
+
+														if (parsedJSON) {
+															output = parsedJSON[0].src;
+															map = JSON.parse(parsedJSON[0].source_map);
+														} else {
+															output = outputChunks;
+														}
+
+														if (map) {
+															map.sources = [];
+															map.sources.push(file);
+
+															asset.__ClosureCompilerPlugin
+															= compilation.assets[file]
+															= new SourceMapSource(output, file, map, input, inputSourceMap);
+														} else {
+															asset.__ClosureCompilerPlugin
+															= compilation.assets[file]
+															= new RawSource(output);
+														}
+
+														if (processedFiles.length == (numberOfFilesToProcess - 1)
+															|| numberOfFilesToProcess == 0) {
+															resolve();
+														} else {
+															processedFiles.push(1);
+														}
 													}
 
 													enderTick = true;
 												});
-											}
-										});
-
-										if (options.create_source_map !== false) {
-											var sourceMapOutputStream = es.through();
-											var sourceMapChunks = '';
-
-											sourceMapOutputServer.listen(function() {
-												if (process.platform == 'win32') {
-													var ender;
-													var enderTick = false;
-
-													fs.watchFile(sourceMapOutputDump, {interval: 100}, function() {
-														enderTick = false;
-
-														if (!ender) {
-															ender = setInterval(function() {
-																if (enderTick) {
-																	clearInterval(ender);
-
-																	var dumpStream = fs.createReadStream(sourceMapOutputDump);
-
-																	dumpStream
-																	.on('data', function(data) {
-																		sourceMapChunks += data;
-																	})
-																	.on('end', function() {
-																		fs.unwatchFile(sourceMapOutputDump);
-																		sourceMapOutputServer.close();
-																		sourceMapOutputStream.write(sourceMapChunks);
-																		sourceMapOutputStream.end();
-																	});
-																}
-
-																enderTick = true;
-															}, 100);
-														}
-													});
-												} else {
-													var dumpStream = fs.createReadStream(sourceMapOutputDump);
-
-													dumpStream
-													.on('data', function(data) {
-														sourceMapChunks += data;
-													})
-													.on('end', function() {
-														fs.unlink(sourceMapOutputDump, function() {
-															sourceMapOutputServer.close();
-															sourceMapOutputStream.write(sourceMapChunks);
-															sourceMapOutputStream.end();
-														});
-													});
-												}
-											});
-
-											es
-											.merge(jsOutputStream, sourceMapOutputStream)
-											.pipe(finalStream);
-										} else {
-											jsOutputStream.pipe(finalStream);
-										}
-
-										var output;
-										var map;
-
-										finalStream
-										.on('data', function(data) {
-											data = data.toString();
-
-											try {
-												var parsedJSON = JSON.parse(data);
-											} catch(err) {}
-
-											if (parsedJSON) {
-												map = parsedJSON;
-											} else {
-												output = data;
-											}
-										})
-										.on('end', function() {
-											if (map) {
-												map.sources = [];
-												map.sources.push(file);
-
-												asset.__ClosureCompilerPlugin
-												= compilation.assets[file]
-												= new SourceMapSource(output, file, map, input, inputSourceMap);
-											} else {
-												asset.__ClosureCompilerPlugin
-												= compilation.assets[file]
-												= new RawSource(output);
-											}
-
-											if (processedFiles.length == (numberOfFilesToProcess - 1)
-												|| numberOfFilesToProcess == 0) {
-												resolve();
-											} else {
-												processedFiles.push(1);
 											}
 										});
 
@@ -338,7 +233,6 @@ ClosureCompilerPlugin.prototype.apply = function(compiler) {
 			});
 
 			compilationPromise.then(function() {
-				temp.cleanupSync();
 				callback();
 			});
 		});
@@ -346,6 +240,13 @@ ClosureCompilerPlugin.prototype.apply = function(compiler) {
 		compilation.plugin('normal-module-loader', function(context) {
 			context.minimize = true;
 		});
+	});
+
+	jvm.spawnJar(gcc, ['--help'], function(err) {
+		if (!err) {
+			jvmStarted = true;
+			jvmEmitter.emit(JVM_STARTED_EVENT);
+		}
 	});
 };
 
