@@ -1,7 +1,4 @@
-var EventEmitter = require('events').EventEmitter;
-
 var nailgun = require('node-nailgun');
-var RSVP = require('rsvp');
 var gcc = require('google-closure-compiler').compiler.COMPILER_PATH;
 
 var ModuleFilenameHelpers = require('webpack/lib/ModuleFilenameHelpers');
@@ -22,13 +19,10 @@ function ClosureCompilerPlugin(options) {
 	this.options = options;
 }
 
-var JVM_STARTED_EVENT = 'jvm-started';
-
 ClosureCompilerPlugin.prototype.apply = function(compiler) {
 	var options = this.options;
 	var jvm = nailgun.createServer();
 	var jvmStarted = false;
-	var jvmEmitter = new EventEmitter;
 
 	options.test = options.test || /\.js($|\?)/i;
 
@@ -40,7 +34,7 @@ ClosureCompilerPlugin.prototype.apply = function(compiler) {
 		}
 
 		compilation.plugin('optimize-chunk-assets', function(chunks, callback) {
-			var compilationPromise = new RSVP.Promise(function(resolve) {
+			var compilationPromise = new Promise(function(resolve) {
 				var files = [];
 				var processedFiles = [];
 
@@ -59,47 +53,61 @@ ClosureCompilerPlugin.prototype.apply = function(compiler) {
 				var numberOfFilesToProcess = files.length;
 
 				if (files.length) {
-					files.forEach(function(file) {
-						try {
-							var asset = compilation.assets[file];
-
-							if (asset.__ClosureCompilerPlugin) {
-								compilation.assets[file] = asset.__ClosureCompilerPlugin;
-								numberOfFilesToProcess--;
-
-								if (numberOfFilesToProcess > 0) {
-									return;
-								}
-							}
-
-							var gccArgs = JSON.parse(JSON.stringify(options));
-							var gccProcessArgs = [];
-
-							if (options.create_source_map !== false) {
-								if (asset.sourceAndMap) {
-									var sourceAndMap = asset.sourceAndMap();
-									var inputSourceMap = sourceAndMap.map;
-									var input = sourceAndMap.source;
+					new Promise(function(resolve, reject) {
+						if (jvmStarted) {
+							resolve();
+						} else {
+							jvm.spawnJar(gcc, ['--help'], function(err) {
+								if (err) {
+									reject(err);
 								} else {
-									var inputSourceMap = asset.map();
-									var input = asset.source();
+									jvmStarted = true;
+									resolve();
+								}
+							});
+						}
+					})
+					.then(function() {
+						files.forEach(function(file) {
+							try {
+								var asset = compilation.assets[file];
+
+								if (asset.__ClosureCompilerPlugin) {
+									compilation.assets[file] = asset.__ClosureCompilerPlugin;
+									numberOfFilesToProcess--;
+
+									if (numberOfFilesToProcess > 0) {
+										return;
+									}
 								}
 
-								var sourceMap = new SourceMapConsumer(inputSourceMap);
-							} else {
-								var input = asset.source();
+								var gccArgs = JSON.parse(JSON.stringify(options));
+								var gccProcessArgs = [];
 
-								delete gccArgs.create_source_map;
-							}
+								if (options.create_source_map !== false) {
+									if (asset.sourceAndMap) {
+										var sourceAndMap = asset.sourceAndMap();
+										var inputSourceMap = sourceAndMap.map;
+										var input = sourceAndMap.source;
+									} else {
+										var inputSourceMap = asset.map();
+										var input = asset.source();
+									}
 
-							delete gccArgs.test;
+									var sourceMap = new SourceMapConsumer(inputSourceMap);
+								} else {
+									var input = asset.source();
 
-							for (var key in gccArgs) {
-								gccProcessArgs.push('--' + key);
-								gccProcessArgs.push(gccArgs[key]);
-							}
+									delete gccArgs.create_source_map;
+								}
 
-							jvmEmitter.once(JVM_STARTED_EVENT, function() {
+								delete gccArgs.test;
+
+								for (var key in gccArgs) {
+									gccProcessArgs.push('--' + key);
+									gccProcessArgs.push(gccArgs[key]);
+								}
+
 								jvm.spawnJar(gcc, gccProcessArgs, function(err, closureCompilerProcess) {
 									if (err) {
 										compilation.errors.push(new Error(file + ' from Nailgun JVM\n' + err));
@@ -177,55 +185,55 @@ ClosureCompilerPlugin.prototype.apply = function(compiler) {
 										closureCompilerProcess.stdin.end();
 									}
 								});
-							});
+							} catch(err) {
+								if (err.line) {
+									if (sourceMap) {
+										var original = sourceMap.originalPositionFor({
+											line: err.line,
+											column: err.col
+										});
+									}
 
-							if (jvmStarted) {
-								jvmEmitter.emit(JVM_STARTED_EVENT);
-							}
-						} catch(err) {
-							if (err.line) {
-								if (sourceMap) {
-									var original = sourceMap.originalPositionFor({
-										line: err.line,
-										column: err.col
-									});
-								}
-
-								if (original && original.source) {
-									compilation.errors.push(new Error(
-										file
-										+ ' from Closure Compiler\n'
-										+ err.message
-										+ ' ['
-										+ new RequestShortener(compiler.context).shorten(original.source)
-										+ ':'
-										+ original.line
-										+ ','
-										+ original.column
-										+ ']'
-									));
+									if (original && original.source) {
+										compilation.errors.push(new Error(
+											file
+											+ ' from Closure Compiler\n'
+											+ err.message
+											+ ' ['
+											+ new RequestShortener(compiler.context).shorten(original.source)
+											+ ':'
+											+ original.line
+											+ ','
+											+ original.column
+											+ ']'
+										));
+									} else {
+										compilation.errors.push(new Error(
+											file
+											+ ' from Closure Compiler\n'
+											+ err.message
+											+ ' ['
+											+ file
+											+ ':'
+											+ err.line
+											+ ','
+											+ err.col
+											+ ']'
+										));
+									}
+								} else if (err.msg) {
+									compilation.errors.push(new Error(file + ' from Closure Compiler\n' + err.msg));
 								} else {
-									compilation.errors.push(new Error(
-										file
-										+ ' from Closure Compiler\n'
-										+ err.message
-										+ ' ['
-										+ file
-										+ ':'
-										+ err.line
-										+ ','
-										+ err.col
-										+ ']'
-									));
+									compilation.errors.push(new Error(file + ' from Closure Compiler\n' + err.stack));
 								}
-							} else if (err.msg) {
-								compilation.errors.push(new Error(file + ' from Closure Compiler\n' + err.msg));
-							} else {
-								compilation.errors.push(new Error(file + ' from Closure Compiler\n' + err.stack));
-							}
 
-							resolve();
-						}
+								resolve();
+							}
+						});
+					})
+					.catch(function(reason) {
+						compilation.errors.push(new Error('Failed to jump start Nailgun JVM\n' + reason));
+						resolve();
 					});
 				} else {
 					resolve();
@@ -240,13 +248,6 @@ ClosureCompilerPlugin.prototype.apply = function(compiler) {
 		compilation.plugin('normal-module-loader', function(context) {
 			context.minimize = true;
 		});
-	});
-
-	jvm.spawnJar(gcc, ['--help'], function(err) {
-		if (!err) {
-			jvmStarted = true;
-			jvmEmitter.emit(JVM_STARTED_EVENT);
-		}
 	});
 };
 
