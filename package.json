@@ -1,6 +1,6 @@
 {
   "name": "closure-compiler-webpack-plugin",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Google Closure Compiler plugin for webpack built on the Nailgun JVM.",
   "author": "Martin Stovicek",
   "license": "MIT",
