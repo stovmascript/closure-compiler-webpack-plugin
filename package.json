@@ -17,7 +17,7 @@
   ],
   "main": "index.js",
   "dependencies": {
-    "google-closure-compiler": "^20160125.0.0",
+    "google-closure-compiler": "^20151216.2.0",
     "node-nailgun": "^1.0.2",
     "webpack": "^1.12.1",
     "webpack-core": "^0.6.6"
