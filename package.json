@@ -25,6 +25,8 @@
   "devDependencies": {
     "autoprefixer-loader": "*",
     "css-loader": "*",
+    "eslint": "^3.3.1",
+    "eslint-config-google": "^0.6.0",
     "extract-text-webpack-plugin": "*",
     "less": "*",
     "less-loader": "*",
